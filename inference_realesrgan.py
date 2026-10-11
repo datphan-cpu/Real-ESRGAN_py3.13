@@ -2,8 +2,11 @@ import argparse
 import cv2
 import glob
 import os
-from basicsr.archs.rrdbnet_arch import RRDBNet
-from basicsr.utils.download_util import load_file_from_url
+try:
+    from basicsr_local import RRDBNet, load_file_from_url
+except ImportError:
+    from basicsr.archs.rrdbnet_arch import RRDBNet
+    from basicsr.utils.download_util import load_file_from_url
 
 from realesrgan import RealESRGANer
 from realesrgan.archs.srvgg_arch import SRVGGNetCompact
@@ -116,7 +119,12 @@ def main():
         gpu_id=args.gpu_id)
 
     if args.face_enhance:  # Use GFPGAN for face enhancement
-        from gfpgan import GFPGANer
+        try:
+            from gfpgan import GFPGANer
+        except ImportError:
+            raise ImportError(
+                'GFPGAN is required for --face_enhance. Please install gfpgan and facexlib, or run without --face_enhance.'
+            )
         face_enhancer = GFPGANer(
             model_path='https://github.com/TencentARC/GFPGAN/releases/download/v1.3.0/GFPGANv1.3.pth',
             upscale=args.outscale,

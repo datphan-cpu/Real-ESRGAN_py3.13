@@ -5,7 +5,10 @@ import os
 import queue
 import threading
 import torch
-from basicsr.utils.download_util import load_file_from_url
+try:
+    from basicsr_local import load_file_from_url
+except ImportError:
+    from basicsr.utils.download_util import load_file_from_url
 from torch.nn import functional as F
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -45,11 +48,15 @@ class RealESRGANer():
         self.half = half
 
         # initialize model
-        if gpu_id:
+        if gpu_id is not None:
             self.device = torch.device(
                 f'cuda:{gpu_id}' if torch.cuda.is_available() else 'cpu') if device is None else device
         else:
             self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu') if device is None else device
+
+        if self.device.type == 'cpu' and self.half:
+            # Half precision operations are not fully supported on CPU in PyTorch
+            self.half = False
 
         if isinstance(model_path, list):
             # dni
@@ -60,7 +67,10 @@ class RealESRGANer():
             if model_path.startswith('https://'):
                 model_path = load_file_from_url(
                     url=model_path, model_dir=os.path.join(ROOT_DIR, 'weights'), progress=True, file_name=None)
-            loadnet = torch.load(model_path, map_location=torch.device('cpu'))
+            try:
+                loadnet = torch.load(model_path, map_location=torch.device('cpu'), weights_only=False)
+            except TypeError:
+                loadnet = torch.load(model_path, map_location=torch.device('cpu'))
 
         # prefer to use params_ema
         if 'params_ema' in loadnet:
@@ -79,8 +89,12 @@ class RealESRGANer():
 
         ``Paper: Deep Network Interpolation for Continuous Imagery Effect Transition``
         """
-        net_a = torch.load(net_a, map_location=torch.device(loc))
-        net_b = torch.load(net_b, map_location=torch.device(loc))
+        try:
+            net_a = torch.load(net_a, map_location=torch.device(loc), weights_only=False)
+            net_b = torch.load(net_b, map_location=torch.device(loc), weights_only=False)
+        except TypeError:
+            net_a = torch.load(net_a, map_location=torch.device(loc))
+            net_b = torch.load(net_b, map_location=torch.device(loc))
         for k, v_a in net_a[key].items():
             net_a[key][k] = dni_weight[0] * v_a + dni_weight[1] * net_b[key][k]
         return net_a

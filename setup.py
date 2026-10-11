@@ -67,15 +67,18 @@ version_info = ({})
 
 
 def get_version():
+    namespace = {}
+    if not os.path.exists(version_file):
+        write_version_py()
     with open(version_file, 'r') as f:
-        exec(compile(f.read(), version_file, 'exec'))
-    return locals()['__version__']
+        exec(compile(f.read(), version_file, 'exec'), namespace)
+    return namespace.get('__version__', '0.3.0')
 
 
 def get_requirements(filename='requirements.txt'):
     here = os.path.dirname(os.path.realpath(__file__))
     with open(os.path.join(here, filename), 'r') as f:
-        requires = [line.replace('\n', '') for line in f.readlines()]
+        requires = [line.strip() for line in f.readlines() if line.strip() and not line.startswith('#')]
     return requires
 
 
@@ -93,15 +96,22 @@ if __name__ == '__main__':
         url='https://github.com/xinntao/Real-ESRGAN',
         include_package_data=True,
         packages=find_packages(exclude=('options', 'datasets', 'experiments', 'results', 'tb_logger', 'wandb')),
+        py_modules=['basicsr_local'],
         classifiers=[
             'Development Status :: 4 - Beta',
             'License :: OSI Approved :: Apache Software License',
             'Operating System :: OS Independent',
             'Programming Language :: Python :: 3',
-            'Programming Language :: Python :: 3.7',
             'Programming Language :: Python :: 3.8',
+            'Programming Language :: Python :: 3.9',
+            'Programming Language :: Python :: 3.10',
+            'Programming Language :: Python :: 3.11',
+            'Programming Language :: Python :: 3.12',
+            'Programming Language :: Python :: 3.13',
         ],
         license='BSD-3-Clause License',
-        setup_requires=['cython', 'numpy'],
         install_requires=get_requirements(),
+        extras_require={
+            'face': ['gfpgan>=1.3.5', 'facexlib>=0.2.5'],
+        },
         zip_safe=False)

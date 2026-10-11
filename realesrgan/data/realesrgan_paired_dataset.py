@@ -4,7 +4,10 @@ from basicsr.data.transforms import augment, paired_random_crop
 from basicsr.utils import FileClient, imfrombytes, img2tensor
 from basicsr.utils.registry import DATASET_REGISTRY
 from torch.utils import data as data
-from torchvision.transforms.functional import normalize
+try:
+    from torchvision.transforms.functional import normalize
+except Exception:
+    from basicsr_local import normalize
 
 
 @DATASET_REGISTRY.register()

@@ -1,14 +1,28 @@
+import collections.abc
+from collections import OrderedDict
 import numpy as np
 import random
 import torch
-from basicsr.data.degradations import random_add_gaussian_noise_pt, random_add_poisson_noise_pt
-from basicsr.data.transforms import paired_random_crop
-from basicsr.models.srgan_model import SRGANModel
-from basicsr.utils import DiffJPEG, USMSharp
-from basicsr.utils.img_process_util import filter2D
-from basicsr.utils.registry import MODEL_REGISTRY
-from collections import OrderedDict
 from torch.nn import functional as F
+
+try:
+    from basicsr_local import (
+        SRGANModel,
+        DiffJPEG,
+        USMSharp,
+        filter2D,
+        random_add_gaussian_noise_pt,
+        random_add_poisson_noise_pt,
+        paired_random_crop,
+        MODEL_REGISTRY,
+    )
+except ImportError:
+    from basicsr.data.degradations import random_add_gaussian_noise_pt, random_add_poisson_noise_pt
+    from basicsr.data.transforms import paired_random_crop
+    from basicsr.models.srgan_model import SRGANModel
+    from basicsr.utils import DiffJPEG, USMSharp
+    from basicsr.utils.img_process_util import filter2D
+    from basicsr.utils.registry import MODEL_REGISTRY
 
 
 @MODEL_REGISTRY.register()
@@ -16,14 +30,14 @@ class RealESRGANModel(SRGANModel):
     """RealESRGAN Model for Real-ESRGAN: Training Real-World Blind Super-Resolution with Pure Synthetic Data.
 
     It mainly performs:
-    1. randomly synthesize LQ images in GPU tensors
+    1. randomly synthesize LQ images in GPU/device tensors
     2. optimize the networks with GAN training.
     """
 
     def __init__(self, opt):
         super(RealESRGANModel, self).__init__(opt)
-        self.jpeger = DiffJPEG(differentiable=False).cuda()  # simulate JPEG compression artifacts
-        self.usm_sharpener = USMSharp().cuda()  # do usm sharpening
+        self.jpeger = DiffJPEG(differentiable=False).to(self.device)  # simulate JPEG compression artifacts
+        self.usm_sharpener = USMSharp().to(self.device)  # do usm sharpening
         self.queue_size = opt.get('queue_size', 180)
 
     @torch.no_grad()
@@ -38,9 +52,9 @@ class RealESRGANModel(SRGANModel):
         b, c, h, w = self.lq.size()
         if not hasattr(self, 'queue_lr'):
             assert self.queue_size % b == 0, f'queue size {self.queue_size} should be divisible by batch size {b}'
-            self.queue_lr = torch.zeros(self.queue_size, c, h, w).cuda()
+            self.queue_lr = torch.zeros(self.queue_size, c, h, w, device=self.device)
             _, c, h, w = self.gt.size()
-            self.queue_gt = torch.zeros(self.queue_size, c, h, w).cuda()
+            self.queue_gt = torch.zeros(self.queue_size, c, h, w, device=self.device)
             self.queue_ptr = 0
         if self.queue_ptr == self.queue_size:  # the pool is full
             # do dequeue and enqueue
