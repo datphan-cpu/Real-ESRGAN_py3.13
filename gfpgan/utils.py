@@ -6,8 +6,6 @@ from basicsr.utils.download_util import load_file_from_url
 from facexlib.utils.face_restoration_helper import FaceRestoreHelper
 from torchvision.transforms.functional import normalize
 
-from gfpgan.archs.gfpgan_bilinear_arch import GFPGANBilinear
-from gfpgan.archs.gfpganv1_arch import GFPGANv1
 from gfpgan.archs.gfpganv1_clean_arch import GFPGANv1Clean
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -49,6 +47,7 @@ class GFPGANer():
                 narrow=1,
                 sft_half=True)
         elif arch == 'bilinear':
+            from gfpgan.archs.gfpgan_bilinear_arch import GFPGANBilinear
             self.gfpgan = GFPGANBilinear(
                 out_size=512,
                 num_style_feat=512,
@@ -61,6 +60,7 @@ class GFPGANer():
                 narrow=1,
                 sft_half=True)
         elif arch == 'original':
+            from gfpgan.archs.gfpganv1_arch import GFPGANv1
             self.gfpgan = GFPGANv1(
                 out_size=512,
                 num_style_feat=512,
@@ -75,7 +75,10 @@ class GFPGANer():
         elif arch == 'RestoreFormer':
             from gfpgan.archs.restoreformer_arch import RestoreFormer
             self.gfpgan = RestoreFormer()
-        # initialize face helper
+        # initialize face helper with local weights folder
+        local_facexlib_dir = os.path.join(ROOT_DIR, 'weights', 'facexlib')
+        if not os.path.exists(local_facexlib_dir):
+            local_facexlib_dir = os.path.join(ROOT_DIR, 'facexlib', 'weights')
         self.face_helper = FaceRestoreHelper(
             upscale,
             face_size=512,
@@ -84,12 +87,18 @@ class GFPGANer():
             save_ext='png',
             use_parse=True,
             device=self.device,
-            model_rootpath='gfpgan/weights')
+            model_rootpath=local_facexlib_dir)
 
         if model_path.startswith('https://'):
+            local_weights_dir = os.path.join(ROOT_DIR, 'weights')
+            if not os.path.exists(local_weights_dir):
+                local_weights_dir = os.path.join(ROOT_DIR, 'gfpgan', 'weights')
             model_path = load_file_from_url(
-                url=model_path, model_dir=os.path.join(ROOT_DIR, 'gfpgan/weights'), progress=True, file_name=None)
-        loadnet = torch.load(model_path)
+                url=model_path, model_dir=local_weights_dir, progress=True, file_name=None)
+        try:
+            loadnet = torch.load(model_path, map_location=torch.device('cpu'), weights_only=False)
+        except TypeError:
+            loadnet = torch.load(model_path, map_location=torch.device('cpu'))
         if 'params_ema' in loadnet:
             keyname = 'params_ema'
         else:

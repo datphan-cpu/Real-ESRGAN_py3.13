@@ -980,6 +980,7 @@ def _install_basicsr_shims():
     shims = {
         'basicsr': this_mod,
         'basicsr.archs': types.ModuleType('basicsr.archs'),
+        'basicsr.archs.arch_util': types.ModuleType('basicsr.archs.arch_util'),
         'basicsr.archs.rrdbnet_arch': types.ModuleType('basicsr.archs.rrdbnet_arch'),
         'basicsr.archs.srvgg_arch': types.ModuleType('basicsr.archs.srvgg_arch'),
         'basicsr.data': types.ModuleType('basicsr.data'),
@@ -1000,6 +1001,10 @@ def _install_basicsr_shims():
     }
 
     # Populate shims
+    shims['basicsr.archs.arch_util'].default_init_weights = default_init_weights
+    shims['basicsr.archs.arch_util'].make_layer = make_layer
+    shims['basicsr.archs'].default_init_weights = default_init_weights
+    shims['basicsr.archs'].make_layer = make_layer
     shims['basicsr.archs.rrdbnet_arch'].RRDBNet = RRDBNet
     shims['basicsr.archs.rrdbnet_arch'].RRDB = RRDB
     shims['basicsr.archs.rrdbnet_arch'].ResidualDenseBlock = ResidualDenseBlock
@@ -1050,5 +1055,18 @@ def _install_basicsr_shims():
     for name, module in shims.items():
         if name not in sys.modules:
             sys.modules[name] = module
+        # If it's a parent package (basicsr, basicsr.archs, basicsr.utils, etc.), give it a package path
+        if name in ('basicsr', 'basicsr.archs', 'basicsr.data', 'basicsr.models', 'basicsr.utils'):
+            if not hasattr(module, '__path__'):
+                module.__path__ = []
+            if not hasattr(module, '__package__'):
+                module.__package__ = name
+
+        # Also attach submodule to its parent module's dict so getattr/attribute access works
+        if '.' in name:
+            parent_name, child_name = name.rsplit('.', 1)
+            parent_mod = sys.modules.get(parent_name)
+            if parent_mod is not None:
+                setattr(parent_mod, child_name, module)
 
 _install_basicsr_shims()
