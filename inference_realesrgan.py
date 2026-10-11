@@ -120,13 +120,26 @@ def main():
 
     if args.face_enhance:  # Use GFPGAN for face enhancement
         try:
-            from gfpgan import GFPGANer
+            # First attempt: direct local import from vendored gfpgan folder
+            from gfpgan.utils import GFPGANer
         except ImportError:
-            raise ImportError(
-                'GFPGAN is required for --face_enhance. Please install gfpgan and facexlib, or run without --face_enhance.'
-            )
+            try:
+                # Fallback: standard import if installed or in PYTHONPATH
+                from gfpgan import GFPGANer
+            except ImportError as e:
+                raise ImportError(
+                    'GFPGAN is required for --face_enhance, but neither local `gfpgan` folder nor installed package was found. '
+                    'Please copy the `gfpgan/` and `facexlib/` folders into your project root or run without --face_enhance. '
+                    f'Original error: {e}'
+                )
+
+        ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
+        gfpgan_model_path = os.path.join(ROOT_DIR, 'weights', 'GFPGANv1.3.pth')
+        if not os.path.isfile(gfpgan_model_path):
+            gfpgan_model_path = 'https://github.com/TencentARC/GFPGAN/releases/download/v1.3.0/GFPGANv1.3.pth'
+
         face_enhancer = GFPGANer(
-            model_path='https://github.com/TencentARC/GFPGAN/releases/download/v1.3.0/GFPGANv1.3.pth',
+            model_path=gfpgan_model_path,
             upscale=args.outscale,
             arch='clean',
             channel_multiplier=2,
