@@ -51,7 +51,7 @@ This repository is an updated, standalone distribution of **Real-ESRGAN** that s
 Clone the repository:
 ```bash
 git clone https://github.com/xinntao/Real-ESRGAN.git
-cd Real-ESRGAN
+cd Real-ESRGAN_py3.13
 ```
 
 Create and activate a virtual environment (recommended):
@@ -66,8 +66,7 @@ source .venv/bin/activate
 Install modern dependencies (no external `basicsr`, `gfpgan`, or `facexlib` pip builds required):
 ```bash
 pip install -r requirements.txt
-pip install torchvision
-python setup.py develop
+pip install -q ffmpeg-python opencv-python Pillow tqdm "numpy<2"
 ```
 
 ---
